@@ -3,6 +3,7 @@ package work
 type Transformer[T any, D any, U chan T, V chan D] interface {
 	Worker
 
+	TransformOnce() error
 	Transform() error
 	InChannel() U
 	OutChannel() V
@@ -14,7 +15,7 @@ type transformer[T any, D any, U chan T, V chan D] struct {
 	out V
 }
 
-func (t transformer[T, D, U, V]) Transform() error {
+func (t transformer[T, D, U, V]) TransformOnce() error {
 	i := <-t.in
 	o, err := t.fn(i)
 	if err != nil {
@@ -24,8 +25,16 @@ func (t transformer[T, D, U, V]) Transform() error {
 	return nil
 }
 
-func (c transformer[T, D, U, V]) Work() error {
-	return c.Transform()
+func (t transformer[T, D, U, V]) Transform() error {
+	for {
+		if err := t.TransformOnce(); err != nil {
+			return err
+		}
+	}
+}
+
+func (t transformer[T, D, U, V]) Work() error {
+	return t.Transform()
 }
 
 func (t transformer[T, D, U, V]) InChannel() U {

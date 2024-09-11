@@ -2,6 +2,7 @@ package work
 
 type Creator[T any, U chan T] interface {
 	Worker
+	CreateOnce() error
 	Create() error
 	OutChannel() U
 }
@@ -11,13 +12,21 @@ type creator[T any, U chan T] struct {
 	out U
 }
 
-func (c creator[T, U]) Create() error {
+func (c creator[T, U]) CreateOnce() error {
 	o, err := c.fn()
 	if err != nil {
 		return err
 	}
 	c.out <- o
 	return nil
+}
+
+func (c creator[T, U]) Create() error {
+	for {
+		if err := c.CreateOnce(); err != nil {
+			return err
+		}
+	}
 }
 
 func (c creator[T, U]) Work() error {

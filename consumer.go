@@ -2,6 +2,7 @@ package work
 
 type Consumer[T any, U chan T] interface {
 	Worker
+	ConsumeOnce() error
 	Consume() error
 	InChannel() U
 }
@@ -11,9 +12,16 @@ type consumer[T any, U chan T] struct {
 	in U
 }
 
-func (c consumer[T, U]) Consume() error {
+func (c consumer[T, U]) ConsumeOnce() error {
 	i := <-c.in
 	return c.fn(i)
+}
+func (c consumer[T, U]) Consume() error {
+	for {
+		if err := c.ConsumeOnce(); err != nil {
+			return err
+		}
+	}
 }
 
 func (c consumer[T, U]) Work() error {
