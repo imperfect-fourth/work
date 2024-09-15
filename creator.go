@@ -8,16 +8,18 @@ type Creator[T any, U chan T] interface {
 }
 
 type creator[T any, U chan T] struct {
-	fn  func() (T, error)
+	fn  func() ([]T, error)
 	out U
 }
 
 func (c creator[T, U]) CreateOnce() error {
-	o, err := c.fn()
+	out, err := c.fn()
 	if err != nil {
 		return err
 	}
-	c.out <- o
+	for _, o := range out {
+		c.out <- o
+	}
 	return nil
 }
 
@@ -37,7 +39,7 @@ func (c creator[T, U]) OutChannel() U {
 	return c.out
 }
 
-func NewCreator[T any, U chan T](fn func() (T, error)) (Creator[T, U], U) {
+func NewCreator[T any, U chan T](fn func() ([]T, error)) (Creator[T, U], U) {
 	out := make(U)
 	return creator[T, U]{fn, out}, out
 }
