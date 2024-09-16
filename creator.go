@@ -1,15 +1,18 @@
 package work
 
-type Creator[T any, U chan T] interface {
+import "time"
+
+type Creator interface {
 	Worker
 	CreateOnce() error
 	Create() error
-	OutChannel() U
+	setCooldown(time.Duration)
 }
 
 type creator[T any, U chan T] struct {
-	fn  func() ([]T, error)
-	out U
+	fn       func() ([]T, error)
+	out      U
+	cooldown time.Duration
 }
 
 func (c creator[T, U]) CreateOnce() error {
@@ -28,6 +31,7 @@ func (c creator[T, U]) Create() error {
 		if err := c.CreateOnce(); err != nil {
 			return err
 		}
+		time.Sleep(c.cooldown)
 	}
 }
 
@@ -39,7 +43,22 @@ func (c creator[T, U]) OutChannel() U {
 	return c.out
 }
 
-func NewCreator[T any, U chan T](fn func() ([]T, error)) (Creator[T, U], U) {
+func (c creator[T, U]) setCooldown(t time.Duration) {
+	c.cooldown = t
+}
+
+func NewCreator[T any, U chan T](fn func() ([]T, error), opts ...CreatorOpt) (Creator, U) {
 	out := make(U)
-	return creator[T, U]{fn, out}, out
+	return creator[T, U]{
+		fn:  fn,
+		out: out,
+	}, out
+}
+
+type CreatorOpt func(Creator)
+
+func WithCooldown(interval time.Duration) CreatorOpt {
+	return func(c Creator) {
+		c.setCooldown(interval)
+	}
 }
