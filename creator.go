@@ -52,12 +52,11 @@ func NewCreator[T any, U chan T](fn func() ([]T, error), opts ...CreatorOpt) (Cr
 	c := creator[T, U]{
 		fn:  fn,
 		out: out,
-	}, out
-
+	}
 	for _, opt := range opts {
 		opt(c)
 	}
-	return c
+	return c, out
 }
 
 type CreatorOpt func(Creator)
