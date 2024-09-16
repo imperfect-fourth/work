@@ -1,11 +1,14 @@
 package work
 
-import "time"
+import (
+	"time"
+)
 
 type Creator interface {
 	Worker
 	CreateOnce() error
 	Create() error
+
 	setCooldown(time.Duration)
 }
 
@@ -43,7 +46,7 @@ func (c creator[T, U]) OutChannel() U {
 	return c.out
 }
 
-func (c creator[T, U]) setCooldown(t time.Duration) {
+func (c *creator[T, U]) setCooldown(t time.Duration) {
 	c.cooldown = t
 }
 
@@ -54,9 +57,9 @@ func NewCreator[T any, U chan T](fn func() ([]T, error), opts ...CreatorOpt) (Cr
 		out: out,
 	}
 	for _, opt := range opts {
-		opt(c)
+		opt(&c)
 	}
-	return c, out
+	return &c, out
 }
 
 type CreatorOpt func(Creator)
