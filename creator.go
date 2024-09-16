@@ -49,10 +49,15 @@ func (c creator[T, U]) setCooldown(t time.Duration) {
 
 func NewCreator[T any, U chan T](fn func() ([]T, error), opts ...CreatorOpt) (Creator, U) {
 	out := make(U)
-	return creator[T, U]{
+	c := creator[T, U]{
 		fn:  fn,
 		out: out,
 	}, out
+
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 type CreatorOpt func(Creator)
