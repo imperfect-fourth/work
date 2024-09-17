@@ -2,66 +2,67 @@ package creator
 
 import (
 	"time"
-
-	"github.com/imperfect-fourth/work"
 )
 
 type Creator interface {
-	work.Worker
-	CreateOnce() error
-	Create() error
+	CreateOnce()
+	Create()
+	Work()
 
-	withCooldown(time.Duration)
-	withQueueSize(int)
+	setCooldown(time.Duration)
+	setErrorChan(chan error)
+	setQueueSize(int)
 }
 
-func NewCreator[T any, U chan T](fn func() ([]T, error), opts ...CreatorOpt) (Creator, U) {
-	out := make(U)
-	c := creator[T, U]{
+func New[Out any](fn func() ([]Out, error), opts ...Option) (Creator, chan Out, chan error) {
+	c := &creator[Out]{
 		fn:  fn,
-		out: out,
+		out: make(chan Out),
+		err: make(chan error),
 	}
 	for _, opt := range opts {
-		opt(&c)
+		opt(c)
 	}
-	return &c, c.out
+	return c, c.out, c.err
 }
 
-type creator[T any, U chan T] struct {
-	fn  func() ([]T, error)
-	out U
+type creator[Out any] struct {
+	fn  func() ([]Out, error)
+	out chan Out
+	err chan error
 
 	cooldown time.Duration
 }
 
-func (c creator[T, U]) CreateOnce() error {
+func (c creator[Out]) CreateOnce() {
 	out, err := c.fn()
 	if err != nil {
-		return err
+		c.err <- err
 	}
 	for _, o := range out {
 		c.out <- o
 	}
-	return nil
 }
 
-func (c creator[T, U]) Create() error {
+func (c creator[Out]) Create() {
 	for {
-		if err := c.CreateOnce(); err != nil {
-			return err
-		}
+		c.CreateOnce()
 		time.Sleep(c.cooldown)
 	}
 }
 
-func (c creator[T, U]) Work() error {
-	return c.Create()
+func (c creator[Out]) Work() {
+	c.Create()
 }
 
-func (c *creator[T, U]) withCooldown(t time.Duration) {
+func (c *creator[Out]) setCooldown(t time.Duration) {
 	c.cooldown = t
 }
 
-func (c *creator[T, U]) withQueueSize(s int) {
-	c.out = make(U, s)
+func (c *creator[Out]) setQueueSize(s int) {
+	c.out = make(chan Out, s)
+}
+
+func (c *creator[Out]) setErrorChan(err chan error) {
+	c.err = err
 }

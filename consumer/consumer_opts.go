@@ -1,9 +1,15 @@
 package consumer
 
-type ConsumerOpt func(Consumer)
+type Option func(Consumer)
 
-func WithParallelism(p int) ConsumerOpt {
+func WithErrorChan(err chan error) Option {
 	return func(c Consumer) {
-		c.withParallelism(p)
+		c.setErrorChan(err)
+	}
+}
+
+func WithParallelism(p int) Option {
+	return func(c Consumer) {
+		c.setParallelism(p)
 	}
 }

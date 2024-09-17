@@ -1,15 +1,21 @@
 package transformer
 
-type TransformerOpt func(Transformer)
+type Option func(Transformer)
 
-func WithParallelism(p int) TransformerOpt {
+func WithErrorChan(err chan error) Option {
 	return func(t Transformer) {
-		t.withParallelism(p)
+		t.setErrorChan(err)
 	}
 }
 
-func WithQueueSize(s int) TransformerOpt {
+func WithParallelism(p int) Option {
 	return func(t Transformer) {
-		t.withQueueSize(s)
+		t.setParallelism(p)
+	}
+}
+
+func WithQueueSize(s int) Option {
+	return func(t Transformer) {
+		t.setQueueSize(s)
 	}
 }
