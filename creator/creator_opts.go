@@ -6,12 +6,12 @@ type CreatorOpt func(Creator)
 
 func WithCooldown(interval time.Duration) CreatorOpt {
 	return func(c Creator) {
-		c.withCooldown(interval)
+		c.setCooldown(interval)
 	}
 }
 
 func WithQueueSize(s int) CreatorOpt {
 	return func(c Creator) {
-		c.withQueueSize(s)
+		c.setQueueSize(s)
 	}
 }

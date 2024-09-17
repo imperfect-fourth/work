@@ -5,51 +5,54 @@ import "github.com/imperfect-fourth/work"
 type Consumer interface {
 	work.Worker
 
-	ConsumeOnce() error
-	Consume() error
+	ConsumeOnce()
+	Consume()
 
 	withParallelism(int)
 }
 
-func NewConsumer[T any, U chan T](in U, fn func(T) error) Consumer {
-	return &consumer[T, U]{
+func NewConsumer[In any](in chan In, fn func(In) error, opts ...ConsumerOpt) (Consumer, chan error) {
+	c := &consumer[In]{
 		fn:          fn,
 		in:          in,
+		err:         make(chan error),
 		parallelism: 1,
 	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c, c.err
 }
 
-type consumer[T any, U chan T] struct {
-	fn func(T) error
-	in U
+type consumer[In any] struct {
+	fn  func(In) error
+	in  chan In
+	err chan error
 
 	parallelism int
 }
 
-func (c consumer[T, U]) ConsumeOnce() error {
-	i := <-c.in
-	return c.fn(i)
-}
-
-func (c consumer[T, U]) Consume() error {
-	throttle := make(chan bool, c.parallelism)
-	for {
-		throttle <- true
-		var err error
-		go func() {
-			err = c.ConsumeOnce()
-		}()
-		if err != nil {
-			return err
-		}
-		<-throttle
+func (c consumer[In]) ConsumeOnce() {
+	if err := c.fn(<-c.in); err != nil {
+		c.err <- err
 	}
 }
 
-func (c consumer[T, U]) Work() error {
-	return c.Consume()
+func (c consumer[In]) Consume() {
+	throttle := make(chan bool, c.parallelism)
+	for {
+		throttle <- true
+		go func() {
+			c.ConsumeOnce()
+			<-throttle
+		}()
+	}
 }
 
-func (c *consumer[T, U]) withParallelism(p int) {
+func (c consumer[In]) Work() {
+	c.Consume()
+}
+
+func (c *consumer[In]) withParallelism(p int) {
 	c.parallelism = p
 }

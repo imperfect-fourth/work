@@ -5,68 +5,65 @@ import "github.com/imperfect-fourth/work"
 type Transformer interface {
 	work.Worker
 
-	TransformOnce() error
-	Transform() error
+	TransformOnce()
+	Transform()
 
-	withQueueSize(int)
-	withParallelism(int)
+	setQueueSize(int)
+	setParallelism(int)
 }
 
-func NewTransformer[T any, D any, U chan T, V chan D](in U, fn func(T) (D, error), opts ...TransformerOpt) (Transformer, V) {
-	out := make(V)
-	t := &transformer[T, D, U, V]{
+func NewTransformer[In any, Out any](in chan In, fn func(In) (Out, error), opts ...TransformerOpt) (Transformer, chan Out, chan error) {
+	t := &transformer[In, Out]{
 		fn:          fn,
 		in:          in,
-		out:         out,
+		out:         make(chan Out),
+		err:         make(chan error),
 		parallelism: 1,
 	}
 	for _, opt := range opts {
 		opt(t)
 	}
-	return t, t.out
+	return t, t.out, t.err
 }
 
-type transformer[T any, D any, U chan T, V chan D] struct {
-	fn  func(T) (D, error)
-	in  U
-	out V
+type transformer[In any, Out any] struct {
+	fn  func(In) (Out, error)
+	in  chan In
+	out chan Out
+	err chan error
 
 	parallelism int
 }
 
-func (t transformer[T, D, U, V]) TransformOnce() error {
+func (t transformer[In, Out]) TransformOnce() {
 	i := <-t.in
 	o, err := t.fn(i)
 	if err != nil {
-		return err
+		t.err <- err
+		return
 	}
 	t.out <- o
-	return nil
 }
 
-func (t transformer[T, D, U, V]) Transform() error {
+func (t transformer[In, Out]) Transform() {
 	throttle := make(chan bool, t.parallelism)
 	for {
 		throttle <- true
-		var err error
 		go func() {
-			err = t.TransformOnce()
+			t.TransformOnce()
+			<-throttle
 		}()
-		if err != nil {
-			return err
-		}
-		<-throttle
 	}
 }
 
-func (t transformer[T, D, U, V]) Work() error {
-	return t.Transform()
+func (t transformer[In, Out]) Work() {
+	t.Transform()
 }
 
-func (t *transformer[T, D, U, V]) withParallelism(p int) {
+func (t *transformer[In, Out]) setParallelism(p int) {
 	t.parallelism = p
 }
 
-func (t *transformer[T, D, U, V]) withQueueSize(s int) {
-	t.out = make(V, s)
+func (t *transformer[In, Out]) setQueueSize(s int) {
+	t.out = make(chan Out, s)
 }
