@@ -6,15 +6,15 @@ type Consumer interface {
 	Work()
 
 	setErrorChan(err chan error)
-	setParallelism(int)
+	setWorkerPoolSize(int)
 }
 
 func New[In any](in chan In, fn func(In) error, opts ...Option) (Consumer, chan error) {
 	c := &consumer[In]{
-		fn:          fn,
-		in:          in,
-		err:         make(chan error),
-		parallelism: 1,
+		fn:             fn,
+		in:             in,
+		err:            make(chan error),
+		workerPoolSize: 1,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -27,7 +27,7 @@ type consumer[In any] struct {
 	in  chan In
 	err chan error
 
-	parallelism int
+	workerPoolSize int
 }
 
 func (c consumer[In]) ConsumeOnce() {
@@ -37,7 +37,7 @@ func (c consumer[In]) ConsumeOnce() {
 }
 
 func (c consumer[In]) Consume() {
-	throttle := make(chan bool, c.parallelism)
+	throttle := make(chan bool, c.workerPoolSize)
 	for {
 		throttle <- true
 		go func() {
@@ -55,6 +55,6 @@ func (c *consumer[In]) setErrorChan(err chan error) {
 	c.err = err
 }
 
-func (c *consumer[In]) setParallelism(p int) {
-	c.parallelism = p
+func (c *consumer[In]) setWorkerPoolSize(n int) {
+	c.workerPoolSize = n
 }

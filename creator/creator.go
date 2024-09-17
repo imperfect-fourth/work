@@ -11,7 +11,6 @@ type Creator interface {
 
 	setCooldown(time.Duration)
 	setErrorChan(chan error)
-	setQueueSize(int)
 }
 
 func New[Out any](fn func() ([]Out, error), opts ...Option) (Creator, chan Out, chan error) {
@@ -57,10 +56,6 @@ func (c creator[Out]) Work() {
 
 func (c *creator[Out]) setCooldown(t time.Duration) {
 	c.cooldown = t
-}
-
-func (c *creator[Out]) setQueueSize(s int) {
-	c.out = make(chan Out, s)
 }
 
 func (c *creator[Out]) setErrorChan(err chan error) {
