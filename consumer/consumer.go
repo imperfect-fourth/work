@@ -13,8 +13,9 @@ type Consumer interface {
 
 func NewConsumer[T any, U chan T](in U, fn func(T) error) Consumer {
 	return &consumer[T, U]{
-		fn: fn,
-		in: in,
+		fn:          fn,
+		in:          in,
+		parallelism: 1,
 	}
 }
 
@@ -31,10 +32,17 @@ func (c consumer[T, U]) ConsumeOnce() error {
 }
 
 func (c consumer[T, U]) Consume() error {
+	throttle := make(chan bool, c.parallelism)
 	for {
-		if err := c.ConsumeOnce(); err != nil {
+		throttle <- true
+		var err error
+		go func() {
+			err = c.ConsumeOnce()
+		}()
+		if err != nil {
 			return err
 		}
+		<-throttle
 	}
 }
 

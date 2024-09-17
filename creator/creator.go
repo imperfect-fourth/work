@@ -24,15 +24,14 @@ func NewCreator[T any, U chan T](fn func() ([]T, error), opts ...CreatorOpt) (Cr
 	for _, opt := range opts {
 		opt(&c)
 	}
-	return &c, out
+	return &c, c.out
 }
 
 type creator[T any, U chan T] struct {
 	fn  func() ([]T, error)
 	out U
 
-	cooldown  time.Duration
-	queueSize int
+	cooldown time.Duration
 }
 
 func (c creator[T, U]) CreateOnce() error {
@@ -64,5 +63,5 @@ func (c *creator[T, U]) withCooldown(t time.Duration) {
 }
 
 func (c *creator[T, U]) withQueueSize(s int) {
-	c.queueSize = s
+	c.out = make(U, s)
 }

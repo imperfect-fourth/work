@@ -12,13 +12,18 @@ type Transformer interface {
 	withParallelism(int)
 }
 
-func NewTransformer[T any, D any, U chan T, V chan D](in U, fn func(T) (D, error)) (Transformer, V) {
+func NewTransformer[T any, D any, U chan T, V chan D](in U, fn func(T) (D, error), opts ...TransformerOpt) (Transformer, V) {
 	out := make(V)
-	return &transformer[T, D, U, V]{
-		fn:  fn,
-		in:  in,
-		out: out,
-	}, out
+	t := &transformer[T, D, U, V]{
+		fn:          fn,
+		in:          in,
+		out:         out,
+		parallelism: 1,
+	}
+	for _, opt := range opts {
+		opt(t)
+	}
+	return t, t.out
 }
 
 type transformer[T any, D any, U chan T, V chan D] struct {
@@ -27,7 +32,6 @@ type transformer[T any, D any, U chan T, V chan D] struct {
 	out V
 
 	parallelism int
-	queueSize   int
 }
 
 func (t transformer[T, D, U, V]) TransformOnce() error {
@@ -41,10 +45,17 @@ func (t transformer[T, D, U, V]) TransformOnce() error {
 }
 
 func (t transformer[T, D, U, V]) Transform() error {
+	throttle := make(chan bool, t.parallelism)
 	for {
-		if err := t.TransformOnce(); err != nil {
+		throttle <- true
+		var err error
+		go func() {
+			err = t.TransformOnce()
+		}()
+		if err != nil {
 			return err
 		}
+		<-throttle
 	}
 }
 
@@ -52,10 +63,10 @@ func (t transformer[T, D, U, V]) Work() error {
 	return t.Transform()
 }
 
-func (t *transformer[T, D, U, V]) withQueueSize(s int) {
-	t.queueSize = s
-}
-
 func (t *transformer[T, D, U, V]) withParallelism(p int) {
 	t.parallelism = p
+}
+
+func (t *transformer[T, D, U, V]) withQueueSize(s int) {
+	t.out = make(V, s)
 }
