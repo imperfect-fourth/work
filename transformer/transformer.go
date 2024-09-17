@@ -8,8 +8,9 @@ type Transformer interface {
 	TransformOnce()
 	Transform()
 
-	setQueueSize(int)
+	setErrorChan(chan error)
 	setParallelism(int)
+	setQueueSize(int)
 }
 
 func NewTransformer[In any, Out any](in chan In, fn func(In) (Out, error), opts ...TransformerOpt) (Transformer, chan Out, chan error) {
@@ -58,6 +59,10 @@ func (t transformer[In, Out]) Transform() {
 
 func (t transformer[In, Out]) Work() {
 	t.Transform()
+}
+
+func (t *transformer[In, Out]) setErrorChan(err chan error) {
+	t.err = err
 }
 
 func (t *transformer[In, Out]) setParallelism(p int) {

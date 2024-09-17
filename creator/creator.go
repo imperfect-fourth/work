@@ -12,19 +12,20 @@ type Creator interface {
 	Create()
 
 	setCooldown(time.Duration)
+	setErrorChan(chan error)
 	setQueueSize(int)
 }
 
 func NewCreator[Out any](fn func() ([]Out, error), opts ...CreatorOpt) (Creator, chan Out, chan error) {
-	c := creator[Out]{
+	c := &creator[Out]{
 		fn:  fn,
 		out: make(chan Out),
 		err: make(chan error),
 	}
 	for _, opt := range opts {
-		opt(&c)
+		opt(c)
 	}
-	return &c, c.out, c.err
+	return c, c.out, c.err
 }
 
 type creator[Out any] struct {
@@ -62,4 +63,8 @@ func (c *creator[Out]) setCooldown(t time.Duration) {
 
 func (c *creator[Out]) setQueueSize(s int) {
 	c.out = make(chan Out, s)
+}
+
+func (c *creator[Out]) setErrorChan(err chan error) {
+	c.err = err
 }

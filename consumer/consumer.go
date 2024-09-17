@@ -8,7 +8,8 @@ type Consumer interface {
 	ConsumeOnce()
 	Consume()
 
-	withParallelism(int)
+	setErrorChan(err chan error)
+	setParallelism(int)
 }
 
 func NewConsumer[In any](in chan In, fn func(In) error, opts ...ConsumerOpt) (Consumer, chan error) {
@@ -53,6 +54,10 @@ func (c consumer[In]) Work() {
 	c.Consume()
 }
 
-func (c *consumer[In]) withParallelism(p int) {
+func (c *consumer[In]) setErrorChan(err chan error) {
+	c.err = err
+}
+
+func (c *consumer[In]) setParallelism(p int) {
 	c.parallelism = p
 }
