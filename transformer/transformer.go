@@ -1,19 +1,16 @@
 package transformer
 
-import "github.com/imperfect-fourth/work"
-
 type Transformer interface {
-	work.Worker
-
 	TransformOnce()
 	Transform()
+	Work()
 
 	setErrorChan(chan error)
 	setParallelism(int)
 	setQueueSize(int)
 }
 
-func NewTransformer[In any, Out any](in chan In, fn func(In) (Out, error), opts ...TransformerOpt) (Transformer, chan Out, chan error) {
+func New[In any, Out any](in chan In, fn func(In) (Out, error), opts ...Option) (Transformer, chan Out, chan error) {
 	t := &transformer[In, Out]{
 		fn:          fn,
 		in:          in,

@@ -2,21 +2,21 @@ package creator
 
 import "time"
 
-type CreatorOpt func(Creator)
+type Option func(Creator)
 
-func WithCooldown(interval time.Duration) CreatorOpt {
+func WithCooldown(interval time.Duration) Option {
 	return func(c Creator) {
 		c.setCooldown(interval)
 	}
 }
 
-func WithErrorChan(err chan error) CreatorOpt {
+func WithErrorChan(err chan error) Option {
 	return func(c Creator) {
 		c.setErrorChan(err)
 	}
 }
 
-func WithQueueSize(s int) CreatorOpt {
+func WithQueueSize(s int) Option {
 	return func(c Creator) {
 		c.setQueueSize(s)
 	}

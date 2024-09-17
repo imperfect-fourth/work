@@ -1,18 +1,15 @@
 package consumer
 
-import "github.com/imperfect-fourth/work"
-
 type Consumer interface {
-	work.Worker
-
 	ConsumeOnce()
 	Consume()
+	Work()
 
 	setErrorChan(err chan error)
 	setParallelism(int)
 }
 
-func NewConsumer[In any](in chan In, fn func(In) error, opts ...ConsumerOpt) (Consumer, chan error) {
+func New[In any](in chan In, fn func(In) error, opts ...Option) (Consumer, chan error) {
 	c := &consumer[In]{
 		fn:          fn,
 		in:          in,

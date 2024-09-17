@@ -2,21 +2,19 @@ package creator
 
 import (
 	"time"
-
-	"github.com/imperfect-fourth/work"
 )
 
 type Creator interface {
-	work.Worker
 	CreateOnce()
 	Create()
+	Work()
 
 	setCooldown(time.Duration)
 	setErrorChan(chan error)
 	setQueueSize(int)
 }
 
-func NewCreator[Out any](fn func() ([]Out, error), opts ...CreatorOpt) (Creator, chan Out, chan error) {
+func New[Out any](fn func() ([]Out, error), opts ...Option) (Creator, chan Out, chan error) {
 	c := &creator[Out]{
 		fn:  fn,
 		out: make(chan Out),
