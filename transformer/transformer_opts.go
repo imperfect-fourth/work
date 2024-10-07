@@ -8,14 +8,8 @@ func WithErrorChan(err chan error) Option {
 	}
 }
 
-func WithParallelism(p int) Option {
+func WithWorkerPoolSize(n int) Option {
 	return func(t Transformer) {
-		t.setParallelism(p)
-	}
-}
-
-func WithQueueSize(s int) Option {
-	return func(t Transformer) {
-		t.setQueueSize(s)
+		t.setWorkerPoolSize(n)
 	}
 }

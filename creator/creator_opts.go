@@ -15,9 +15,3 @@ func WithErrorChan(err chan error) Option {
 		c.setErrorChan(err)
 	}
 }
-
-func WithQueueSize(s int) Option {
-	return func(c Creator) {
-		c.setQueueSize(s)
-	}
-}

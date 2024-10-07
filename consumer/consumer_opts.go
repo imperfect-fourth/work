@@ -8,8 +8,8 @@ func WithErrorChan(err chan error) Option {
 	}
 }
 
-func WithParallelism(p int) Option {
+func WithWorkerPoolSize(n int) Option {
 	return func(c Consumer) {
-		c.setParallelism(p)
+		c.setWorkerPoolSize(n)
 	}
 }
