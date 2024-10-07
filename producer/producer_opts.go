@@ -1,17 +1,17 @@
-package creator
+package producer
 
 import "time"
 
-type Option func(Creator)
+type Option func(Producer)
 
 func WithCooldown(interval time.Duration) Option {
-	return func(c Creator) {
+	return func(c Producer) {
 		c.setCooldown(interval)
 	}
 }
 
 func WithErrorChan(err chan error) Option {
-	return func(c Creator) {
+	return func(c Producer) {
 		c.setErrorChan(err)
 	}
 }

@@ -1,20 +1,20 @@
-package creator
+package producer
 
 import (
 	"time"
 )
 
-type Creator interface {
-	CreateOnce()
-	Create()
+type Producer interface {
+	ProduceOnce()
+	Produce()
 	Work()
 
 	setCooldown(time.Duration)
 	setErrorChan(chan error)
 }
 
-func New[Out any](fn func() ([]Out, error), opts ...Option) (Creator, chan Out, chan error) {
-	c := &creator[Out]{
+func New[Out any](fn func() ([]Out, error), opts ...Option) (Producer, chan Out, chan error) {
+	c := &producer[Out]{
 		fn:  fn,
 		out: make(chan Out),
 		err: make(chan error),
@@ -25,7 +25,7 @@ func New[Out any](fn func() ([]Out, error), opts ...Option) (Creator, chan Out, 
 	return c, c.out, c.err
 }
 
-type creator[Out any] struct {
+type producer[Out any] struct {
 	fn  func() ([]Out, error)
 	out chan Out
 	err chan error
@@ -33,7 +33,7 @@ type creator[Out any] struct {
 	cooldown time.Duration
 }
 
-func (c creator[Out]) CreateOnce() {
+func (c producer[Out]) ProduceOnce() {
 	out, err := c.fn()
 	if err != nil {
 		c.err <- err
@@ -43,21 +43,21 @@ func (c creator[Out]) CreateOnce() {
 	}
 }
 
-func (c creator[Out]) Create() {
+func (c producer[Out]) Produce() {
 	for {
-		c.CreateOnce()
+		c.ProduceOnce()
 		time.Sleep(c.cooldown)
 	}
 }
 
-func (c creator[Out]) Work() {
-	c.Create()
+func (c producer[Out]) Work() {
+	c.Produce()
 }
 
-func (c *creator[Out]) setCooldown(t time.Duration) {
+func (c *producer[Out]) setCooldown(t time.Duration) {
 	c.cooldown = t
 }
 
-func (c *creator[Out]) setErrorChan(err chan error) {
+func (c *producer[Out]) setErrorChan(err chan error) {
 	c.err = err
 }
