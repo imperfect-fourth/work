@@ -1,5 +1,12 @@
 package consumer
 
+import (
+	"fmt"
+
+	"github.com/imperfect-fourth/work/job"
+	"go.opentelemetry.io/otel"
+)
+
 type Consumer interface {
 	ConsumeOnce()
 	Consume()
@@ -9,8 +16,9 @@ type Consumer interface {
 	setWorkerPoolSize(int)
 }
 
-func New[In any](in chan In, fn func(In) error, opts ...Option) (Consumer, chan error) {
+func New[In any](name string, in job.Queue[In], fn func(In) error, opts ...Option) (Consumer, chan error) {
 	c := &consumer[In]{
+		name:           name,
 		fn:             fn,
 		in:             in,
 		err:            make(chan error),
@@ -23,15 +31,24 @@ func New[In any](in chan In, fn func(In) error, opts ...Option) (Consumer, chan 
 }
 
 type consumer[In any] struct {
+	name string
+
 	fn  func(In) error
-	in  chan In
+	in  job.Queue[In]
 	err chan error
 
 	workerPoolSize int
 }
 
 func (c consumer[In]) ConsumeOnce() {
-	if err := c.fn(<-c.in); err != nil {
+	i := <-c.in
+
+	_, span := otel.Tracer(c.name).Start(i.Context(), "consume jobs")
+	defer func() {
+		fmt.Printf("consumer span %+v\n", span)
+		span.End()
+	}()
+	if err := c.fn(i.Input()); err != nil {
 		c.err <- err
 	}
 }

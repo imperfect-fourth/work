@@ -1,5 +1,12 @@
 package transformer
 
+import (
+	"fmt"
+
+	"github.com/imperfect-fourth/work/job"
+	"go.opentelemetry.io/otel"
+)
+
 type Transformer interface {
 	TransformOnce()
 	Transform()
@@ -9,11 +16,12 @@ type Transformer interface {
 	setWorkerPoolSize(int)
 }
 
-func New[In any, Out any](in chan In, fn func(In) (Out, error), opts ...Option) (Transformer, chan Out, chan error) {
+func New[In any, Out any](name string, in job.Queue[In], fn func(In) (Out, error), opts ...Option) (Transformer, job.Queue[Out], chan error) {
 	t := &transformer[In, Out]{
+		name:           name,
 		fn:             fn,
 		in:             in,
-		out:            make(chan Out),
+		out:            make(job.Queue[Out]),
 		err:            make(chan error),
 		workerPoolSize: 1,
 	}
@@ -24,22 +32,28 @@ func New[In any, Out any](in chan In, fn func(In) (Out, error), opts ...Option) 
 }
 
 type transformer[In any, Out any] struct {
-	fn  func(In) (Out, error)
-	in  chan In
-	out chan Out
-	err chan error
+	name string
+	fn   func(In) (Out, error)
+	in   job.Queue[In]
+	out  job.Queue[Out]
+	err  chan error
 
 	workerPoolSize int
 }
 
 func (t transformer[In, Out]) TransformOnce() {
 	i := <-t.in
-	o, err := t.fn(i)
+	ctx, span := otel.Tracer(t.name).Start(i.Context(), "transform jobs")
+	defer func() {
+		fmt.Printf("transformer span %+v\n", span)
+		span.End()
+	}()
+	o, err := t.fn(i.Input())
 	if err != nil {
 		t.err <- err
 		return
 	}
-	t.out <- o
+	t.out <- job.New(ctx, o)
 }
 
 func (t transformer[In, Out]) Transform() {
