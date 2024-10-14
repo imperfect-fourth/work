@@ -4,7 +4,7 @@ import "github.com/imperfect-fourth/work/job"
 
 type Option func(Transformer)
 
-func WithErrorChan(err job.Queue[error]) Option {
+func WithErrorQueue(err job.Queue[error]) Option {
 	return func(t Transformer) {
 		t.setErrorQueue(err)
 	}
