@@ -13,3 +13,9 @@ func WithWorkerPoolSize(n int) Option {
 		t.setWorkerPoolSize(n)
 	}
 }
+
+func WithSpanName(name string) Option {
+	return func(t Transformer) {
+		t.setSpanName(name)
+	}
+}
