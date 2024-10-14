@@ -6,7 +6,7 @@ import (
 
 	"github.com/imperfect-fourth/work/job"
 	"go.opentelemetry.io/otel"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Producer interface {
@@ -20,11 +20,10 @@ type Producer interface {
 
 func New[Out any](name string, fn func() ([]Out, error), opts ...Option) (Producer, chan job.Job[Out], chan error) {
 	p := &producer[Out]{
-		name:  name,
-		fn:    fn,
-		out:   make(chan job.Job[Out]),
-		err:   make(chan error),
-		idgen: defaultIDGenerator(),
+		name: name,
+		fn:   fn,
+		out:  make(chan job.Job[Out]),
+		err:  make(chan error),
 	}
 	for _, opt := range opts {
 		opt(p)
@@ -40,8 +39,6 @@ type producer[Out any] struct {
 	err chan error
 
 	cooldown time.Duration
-
-	idgen sdktrace.IDGenerator
 }
 
 func (p producer[Out]) ProduceOnce() {
@@ -51,16 +48,19 @@ func (p producer[Out]) ProduceOnce() {
 	if err != nil {
 		p.err <- err
 	}
+
 	jobs := make([]job.Job[Out], len(out))
+	spans := make([]trace.Span, len(out))
 	for i, o := range out {
-		j := job.New(context.Background(), o)
-		j.StartSpan(otel.Tracer(p.name), "queue wait")
+		rootCtx, j := job.New(context.Background(), o)
+		_, jobspan := otel.Tracer(p.name).Start(rootCtx, "start queue wait")
 		jobs[i] = j
+		spans[i] = jobspan
 	}
 
-	for _, j := range jobs {
+	for i, j := range jobs {
 		p.out <- j
-		j.EndSpan()
+		spans[i].End()
 	}
 }
 

@@ -1,8 +1,6 @@
 package consumer
 
 import (
-	"fmt"
-
 	"github.com/imperfect-fourth/work/job"
 	"go.opentelemetry.io/otel"
 )
@@ -41,14 +39,16 @@ type consumer[In any] struct {
 }
 
 func (c consumer[In]) ConsumeOnce() {
-	i := <-c.in
+	j := <-c.in
+	defer j.End()
 
-	_, span := otel.Tracer(c.name).Start(i.Context(), "consume jobs")
-	defer func() {
-		fmt.Printf("consumer span %+v\n", span)
-		span.End()
-	}()
-	if err := c.fn(i.Input()); err != nil {
+	ctx, span := otel.Tracer(c.name).Start(j.Context(), c.name)
+	defer span.End()
+
+	_, jobspan := otel.Tracer(c.name).Start(ctx, "consume job")
+	err := c.fn(j.Input())
+	jobspan.End()
+	if err != nil {
 		c.err <- err
 	}
 }

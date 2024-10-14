@@ -24,11 +24,11 @@ func producerFn() ([]int, error) {
 }
 func consumerFn(i int) error {
 	fmt.Println(i)
-	time.Sleep(1)
+	time.Sleep(1 * time.Second)
 	return nil
 }
 func transformerFn(i int) (int, error) {
-	time.Sleep(1)
+	time.Sleep(1 * time.Second)
 	return i + 1, nil
 }
 

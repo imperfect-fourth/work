@@ -13,3 +13,6 @@ services:
       - "4318:4318"
     environment:
       - LOG_LEVEL=debug
+    command: [
+      "--query.max-clock-skew-adjustment=5s",
+    ]

@@ -1,8 +1,6 @@
 package transformer
 
 import (
-	"fmt"
-
 	"github.com/imperfect-fourth/work/job"
 	"go.opentelemetry.io/otel"
 )
@@ -42,18 +40,22 @@ type transformer[In any, Out any] struct {
 }
 
 func (t transformer[In, Out]) TransformOnce() {
-	i := <-t.in
-	ctx, span := otel.Tracer(t.name).Start(i.Context(), "transform jobs")
-	defer func() {
-		fmt.Printf("transformer span %+v\n", span)
-		span.End()
-	}()
-	o, err := t.fn(i.Input())
+	j := <-t.in
+	ctx, span := otel.Tracer(t.name).Start(j.Context(), t.name)
+	defer span.End()
+
+	_, fnspan := otel.Tracer(t.name).Start(ctx, "transform job")
+	o, err := t.fn(j.Input())
+	fnspan.End()
 	if err != nil {
 		t.err <- err
 		return
 	}
-	t.out <- job.New(ctx, o)
+
+	_, jobspan := otel.Tracer(t.name).Start(ctx, "output queue wait")
+	_, newJob := job.New(j.Context(), o)
+	t.out <- newJob
+	jobspan.End()
 }
 
 func (t transformer[In, Out]) Transform() {
