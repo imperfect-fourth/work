@@ -9,7 +9,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-var jobGlobalsKey = struct{}{}
+type contextKey struct{}
+
+var jobGlobalsKey = contextKey{}
 
 type jobGlobals struct {
 	id       uuid.UUID
@@ -35,7 +37,6 @@ func New[T any](ctx context.Context, in T) (context.Context, Job[T]) {
 		}
 	}
 	id := uuid.New()
-	//trace.SpanFromContext(ctx).SetAttributes(attribute.String("job_id", id.String()))
 	ctx, rootSpan := otel.Tracer("root").Start(ctx, fmt.Sprintf("job %s", id.String()))
 	jg := &jobGlobals{
 		id:       id,

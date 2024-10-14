@@ -62,7 +62,6 @@ func main() {
 
 	c, _ := work.NewConsumer("int consumer", transformedIntChan, consumerFn, consumer.WithSpanName("sleeping one and printing"))
 	c.Work()
-
 }
 
 func startTracing() (*trace.TracerProvider, error) {
@@ -99,6 +98,5 @@ func startTracing() (*trace.TracerProvider, error) {
 	)
 
 	otel.SetTracerProvider(tracerprovider)
-
 	return tracerprovider, nil
 }
