@@ -10,18 +10,18 @@ type Consumer interface {
 	Consume()
 	Work()
 
-	setErrorChan(err chan error)
+	setErrorQueue(err job.Queue[error])
 	setWorkerPoolSize(int)
 	setSpanName(string)
 }
 
-func New[In any](name string, in job.Queue[In], fn func(In) error, opts ...Option) (Consumer, chan error) {
+func New[In any](name string, in job.Queue[In], fn func(In) error, opts ...Option) (Consumer, job.Queue[error]) {
 	c := &consumer[In]{
 		name:           name,
 		spanName:       "consume job",
 		fn:             fn,
 		in:             in,
-		err:            make(chan error),
+		err:            make(job.Queue[error]),
 		workerPoolSize: 1,
 	}
 	for _, opt := range opts {
@@ -36,7 +36,7 @@ type consumer[In any] struct {
 
 	fn  func(In) error
 	in  job.Queue[In]
-	err chan error
+	err job.Queue[error]
 
 	workerPoolSize int
 }
@@ -52,7 +52,8 @@ func (c consumer[In]) ConsumeOnce() {
 	err := c.fn(j.Input())
 	jobspan.End()
 	if err != nil {
-		c.err <- err
+		_, errJob := job.New(ctx, err)
+		c.err <- errJob
 	}
 }
 
@@ -71,7 +72,7 @@ func (c consumer[In]) Work() {
 	c.Consume()
 }
 
-func (c *consumer[In]) setErrorChan(err chan error) {
+func (c *consumer[In]) setErrorQueue(err job.Queue[error]) {
 	c.err = err
 }
 
