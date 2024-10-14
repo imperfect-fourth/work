@@ -12,11 +12,13 @@ type Consumer interface {
 
 	setErrorChan(err chan error)
 	setWorkerPoolSize(int)
+	setSpanName(string)
 }
 
 func New[In any](name string, in job.Queue[In], fn func(In) error, opts ...Option) (Consumer, chan error) {
 	c := &consumer[In]{
 		name:           name,
+		spanName:       "consume job",
 		fn:             fn,
 		in:             in,
 		err:            make(chan error),
@@ -29,7 +31,8 @@ func New[In any](name string, in job.Queue[In], fn func(In) error, opts ...Optio
 }
 
 type consumer[In any] struct {
-	name string
+	name     string
+	spanName string
 
 	fn  func(In) error
 	in  job.Queue[In]
@@ -45,7 +48,7 @@ func (c consumer[In]) ConsumeOnce() {
 	ctx, span := otel.Tracer(c.name).Start(j.Context(), c.name)
 	defer span.End()
 
-	_, jobspan := otel.Tracer(c.name).Start(ctx, "consume job")
+	_, jobspan := otel.Tracer(c.name).Start(ctx, c.spanName)
 	err := c.fn(j.Input())
 	jobspan.End()
 	if err != nil {
@@ -74,4 +77,8 @@ func (c *consumer[In]) setErrorChan(err chan error) {
 
 func (c *consumer[In]) setWorkerPoolSize(n int) {
 	c.workerPoolSize = n
+}
+
+func (c *consumer[In]) setSpanName(name string) {
+	c.spanName = name
 }

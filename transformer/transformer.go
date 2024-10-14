@@ -12,11 +12,13 @@ type Transformer interface {
 
 	setErrorChan(chan error)
 	setWorkerPoolSize(int)
+	setSpanName(string)
 }
 
 func New[In any, Out any](name string, in job.Queue[In], fn func(In) (Out, error), opts ...Option) (Transformer, job.Queue[Out], chan error) {
 	t := &transformer[In, Out]{
 		name:           name,
+		spanName:       "transform job",
 		fn:             fn,
 		in:             in,
 		out:            make(job.Queue[Out]),
@@ -30,11 +32,13 @@ func New[In any, Out any](name string, in job.Queue[In], fn func(In) (Out, error
 }
 
 type transformer[In any, Out any] struct {
-	name string
-	fn   func(In) (Out, error)
-	in   job.Queue[In]
-	out  job.Queue[Out]
-	err  chan error
+	name     string
+	spanName string
+
+	fn  func(In) (Out, error)
+	in  job.Queue[In]
+	out job.Queue[Out]
+	err chan error
 
 	workerPoolSize int
 }
@@ -44,7 +48,7 @@ func (t transformer[In, Out]) TransformOnce() {
 	ctx, span := otel.Tracer(t.name).Start(j.Context(), t.name)
 	defer span.End()
 
-	_, fnspan := otel.Tracer(t.name).Start(ctx, "transform job")
+	_, fnspan := otel.Tracer(t.name).Start(ctx, t.spanName)
 	o, err := t.fn(j.Input())
 	fnspan.End()
 	if err != nil {
@@ -79,4 +83,8 @@ func (t *transformer[In, Out]) setErrorChan(err chan error) {
 
 func (t *transformer[In, Out]) setWorkerPoolSize(n int) {
 	t.workerPoolSize = n
+}
+
+func (t *transformer[In, Out]) setSpanName(name string) {
+	t.spanName = name
 }

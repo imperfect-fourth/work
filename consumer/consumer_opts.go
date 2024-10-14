@@ -13,3 +13,9 @@ func WithWorkerPoolSize(n int) Option {
 		c.setWorkerPoolSize(n)
 	}
 }
+
+func WithSpanName(name string) Option {
+	return func(c Consumer) {
+		c.setSpanName(name)
+	}
+}

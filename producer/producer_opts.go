@@ -5,13 +5,13 @@ import "time"
 type Option func(Producer)
 
 func WithCooldown(interval time.Duration) Option {
-	return func(c Producer) {
-		c.setCooldown(interval)
+	return func(p Producer) {
+		p.setCooldown(interval)
 	}
 }
 
 func WithErrorChan(err chan error) Option {
-	return func(c Producer) {
-		c.setErrorChan(err)
+	return func(p Producer) {
+		p.setErrorChan(err)
 	}
 }
