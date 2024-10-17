@@ -1,10 +1,12 @@
 package transformer
 
+import "github.com/imperfect-fourth/work/job"
+
 type Option func(Transformer)
 
-func WithErrorChan(err chan error) Option {
+func WithErrorQueue(err job.Queue[error]) Option {
 	return func(t Transformer) {
-		t.setErrorChan(err)
+		t.setErrorQueue(err)
 	}
 }
 

@@ -10,19 +10,19 @@ type Transformer interface {
 	Transform()
 	Work()
 
-	setErrorChan(chan error)
+	setErrorQueue(job.Queue[error])
 	setWorkerPoolSize(int)
 	setSpanName(string)
 }
 
-func New[In any, Out any](name string, in job.Queue[In], fn func(In) (Out, error), opts ...Option) (Transformer, job.Queue[Out], chan error) {
+func New[In any, Out any](name string, in job.Queue[In], fn func(In) (Out, error), opts ...Option) (Transformer, job.Queue[Out], job.Queue[error]) {
 	t := &transformer[In, Out]{
 		name:           name,
 		spanName:       "transform job",
 		fn:             fn,
 		in:             in,
 		out:            make(job.Queue[Out]),
-		err:            make(chan error),
+		err:            make(job.Queue[error]),
 		workerPoolSize: 1,
 	}
 	for _, opt := range opts {
@@ -38,7 +38,7 @@ type transformer[In any, Out any] struct {
 	fn  func(In) (Out, error)
 	in  job.Queue[In]
 	out job.Queue[Out]
-	err chan error
+	err job.Queue[error]
 
 	workerPoolSize int
 }
@@ -52,7 +52,8 @@ func (t transformer[In, Out]) TransformOnce() {
 	o, err := t.fn(j.Input())
 	fnspan.End()
 	if err != nil {
-		t.err <- err
+		_, errJob := job.New(ctx, err)
+		t.err <- errJob
 		return
 	}
 
@@ -77,7 +78,7 @@ func (t transformer[In, Out]) Work() {
 	t.Transform()
 }
 
-func (t *transformer[In, Out]) setErrorChan(err chan error) {
+func (t *transformer[In, Out]) setErrorQueue(err job.Queue[error]) {
 	t.err = err
 }
 

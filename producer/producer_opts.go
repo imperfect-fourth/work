@@ -1,6 +1,10 @@
 package producer
 
-import "time"
+import (
+	"time"
+
+	"github.com/imperfect-fourth/work/job"
+)
 
 type Option func(Producer)
 
@@ -10,8 +14,8 @@ func WithCooldown(interval time.Duration) Option {
 	}
 }
 
-func WithErrorChan(err chan error) Option {
+func WithErrorQueue(err job.Queue[error]) Option {
 	return func(p Producer) {
-		p.setErrorChan(err)
+		p.setErrorQueue(err)
 	}
 }

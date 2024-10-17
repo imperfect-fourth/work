@@ -1,10 +1,12 @@
 package consumer
 
+import "github.com/imperfect-fourth/work/job"
+
 type Option func(Consumer)
 
-func WithErrorChan(err chan error) Option {
+func WithErrorQueue(err job.Queue[error]) Option {
 	return func(c Consumer) {
-		c.setErrorChan(err)
+		c.setErrorQueue(err)
 	}
 }
 
