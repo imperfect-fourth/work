@@ -2,7 +2,6 @@ package producer
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/imperfect-fourth/work/job"
@@ -43,15 +42,11 @@ type producer[Out any] struct {
 }
 
 func (p producer[Out]) ProduceOnce() {
-	ctx, span := otel.Tracer(p.name).Start(context.Background(), "produce job")
 	out, err := p.fn()
-	span.End()
 	if err != nil {
-		_, errJob := job.New(ctx, err)
+		_, errJob := job.New(context.Background(), err)
 		p.err <- errJob
-	}
-	if len(out) > 0 {
-		fmt.Println(span.SpanContext().TraceID())
+		return
 	}
 
 	jobs := make([]job.Job[Out], len(out))
@@ -59,7 +54,6 @@ func (p producer[Out]) ProduceOnce() {
 	for i, o := range out {
 		rootCtx, j := job.New(context.Background(), o)
 		_, jobspan := otel.Tracer(p.name).Start(rootCtx, "start queue wait")
-		fmt.Println(jobspan.SpanContext().TraceID())
 		jobs[i] = j
 		spans[i] = jobspan
 	}
