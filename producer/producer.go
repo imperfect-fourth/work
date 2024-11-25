@@ -15,15 +15,15 @@ type Producer interface {
 	Work()
 
 	setCooldown(time.Duration)
-	setErrorChan(chan error)
+	setErrorQueue(job.Queue[error])
 }
 
-func New[Out any](name string, fn func() ([]Out, error), opts ...Option) (Producer, chan job.Job[Out], chan error) {
+func New[Out any](name string, fn func() ([]Out, error), opts ...Option) (Producer, job.Queue[Out], job.Queue[error]) {
 	p := &producer[Out]{
 		name: name,
 		fn:   fn,
 		out:  make(chan job.Job[Out]),
-		err:  make(chan error),
+		err:  make(chan job.Job[error]),
 	}
 	for _, opt := range opts {
 		opt(p)
@@ -35,18 +35,18 @@ type producer[Out any] struct {
 	name string
 
 	fn  func() ([]Out, error)
-	out chan job.Job[Out]
-	err chan error
+	out job.Queue[Out]
+	err job.Queue[error]
 
 	cooldown time.Duration
 }
 
 func (p producer[Out]) ProduceOnce() {
-	_, span := otel.Tracer(p.name).Start(context.Background(), "produce job")
 	out, err := p.fn()
-	span.End()
 	if err != nil {
-		p.err <- err
+		_, errJob := job.New(context.Background(), err)
+		p.err <- errJob
+		return
 	}
 
 	jobs := make([]job.Job[Out], len(out))
@@ -79,6 +79,6 @@ func (p *producer[Out]) setCooldown(t time.Duration) {
 	p.cooldown = t
 }
 
-func (p *producer[Out]) setErrorChan(err chan error) {
+func (p *producer[Out]) setErrorQueue(err job.Queue[error]) {
 	p.err = err
 }
