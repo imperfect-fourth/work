@@ -12,23 +12,33 @@ import (
 	"github.com/imperfect-fourth/work/producer"
 	"github.com/imperfect-fourth/work/transformer"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
-	"go.opentelemetry.io/otel/sdk/trace"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func producerFn() ([]int, error) {
 	fmt.Println("producing")
 	return []int{0, 1, 2, 3, 4}, nil
 }
-func consumerFn(i int) error {
+func consumerFn(ctx context.Context, i int) error {
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(
+		attribute.Int("i", i),
+	)
 	fmt.Println(i)
 	time.Sleep(1 * time.Second)
 	return nil
 }
-func transformerFn(i int) (int, error) {
+func transformerFn(ctx context.Context, i int) (int, error) {
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(
+		attribute.Int("i", i),
+	)
 	time.Sleep(1 * time.Second)
 	return i + 1, nil
 }
@@ -64,7 +74,7 @@ func main() {
 	c.Work()
 }
 
-func startTracing() (*trace.TracerProvider, error) {
+func startTracing() (*sdktrace.TracerProvider, error) {
 	headers := map[string]string{
 		"content-type": "application/json",
 	}
@@ -82,14 +92,14 @@ func startTracing() (*trace.TracerProvider, error) {
 		return nil, fmt.Errorf("creating new exporter: %w", err)
 	}
 
-	tracerprovider := trace.NewTracerProvider(
-		trace.WithBatcher(
+	tracerprovider := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(
 			exporter,
-			trace.WithMaxExportBatchSize(trace.DefaultMaxExportBatchSize),
-			trace.WithBatchTimeout(trace.DefaultScheduleDelay*time.Millisecond),
-			trace.WithMaxExportBatchSize(trace.DefaultMaxExportBatchSize),
+			sdktrace.WithMaxExportBatchSize(sdktrace.DefaultMaxExportBatchSize),
+			sdktrace.WithBatchTimeout(sdktrace.DefaultScheduleDelay*time.Millisecond),
+			sdktrace.WithMaxExportBatchSize(sdktrace.DefaultMaxExportBatchSize),
 		),
-		trace.WithResource(
+		sdktrace.WithResource(
 			resource.NewWithAttributes(
 				semconv.SchemaURL,
 				semconv.ServiceNameKey.String("test"),
