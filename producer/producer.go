@@ -52,7 +52,11 @@ func (p producer[Out]) ProduceOnce() {
 	jobs := make([]job.Job[Out], len(out))
 	spans := make([]trace.Span, len(out))
 	for i, o := range out {
-		rootCtx, j := job.New(context.Background(), o)
+		ctx := context.Background()
+		if co, ok := any(o).(ContextualOutput); ok {
+			ctx = co.Context()
+		}
+		rootCtx, j := job.New(ctx, o)
 		_, jobspan := otel.Tracer(p.name).Start(rootCtx, "start queue wait")
 		jobs[i] = j
 		spans[i] = jobspan
@@ -81,4 +85,8 @@ func (p *producer[Out]) setCooldown(t time.Duration) {
 
 func (p *producer[Out]) setErrorQueue(err job.Queue[error]) {
 	p.err = err
+}
+
+type ContextualOutput interface {
+	Context() context.Context
 }
