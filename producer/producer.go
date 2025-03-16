@@ -9,26 +9,25 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-type Producer interface {
+type Producer[Out any] interface {
 	ProduceOnce()
 	Produce()
 	Work()
+	Output() job.Queue[Out]
+	Error() job.Queue[error]
 
-	setCooldown(time.Duration)
-	setErrorQueue(job.Queue[error])
+	WithCooldown(time.Duration) Producer[Out]
+	WithErrorQueue(job.Queue[error]) Producer[Out]
 }
 
-func New[Out any](name string, fn func() ([]Out, error), opts ...Option) (Producer, job.Queue[Out], job.Queue[error]) {
+func New[Out any](name string, fn func() ([]Out, error)) Producer[Out] {
 	p := &producer[Out]{
 		name: name,
 		fn:   fn,
 		out:  make(chan job.Job[Out]),
 		err:  make(chan job.Job[error]),
 	}
-	for _, opt := range opts {
-		opt(p)
-	}
-	return p, p.out, p.err
+	return p
 }
 
 type producer[Out any] struct {
@@ -79,12 +78,22 @@ func (p producer[Out]) Work() {
 	p.Produce()
 }
 
-func (p *producer[Out]) setCooldown(t time.Duration) {
-	p.cooldown = t
+func (p producer[Out]) Output() job.Queue[Out] {
+	return p.out
 }
 
-func (p *producer[Out]) setErrorQueue(err job.Queue[error]) {
+func (p producer[Out]) Error() job.Queue[error] {
+	return p.err
+}
+
+func (p *producer[Out]) WithCooldown(t time.Duration) Producer[Out] {
+	p.cooldown = t
+	return p
+}
+
+func (p *producer[Out]) WithErrorQueue(err job.Queue[error]) Producer[Out] {
 	p.err = err
+	return p
 }
 
 type ContextualOutput interface {

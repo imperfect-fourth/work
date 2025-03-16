@@ -7,30 +7,32 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-type Transformer interface {
+type Transformer[In, Out any] interface {
 	TransformOnce()
 	Transform()
 	Work()
 
-	setErrorQueue(job.Queue[error])
-	setWorkerPoolSize(int)
-	setSpanName(string)
+	Input() job.Queue[In]
+	Output() job.Queue[Out]
+	Error() job.Queue[error]
+
+	WithInput(job.Queue[In]) Transformer[In, Out]
+	WithErrorQueue(job.Queue[error]) Transformer[In, Out]
+	WithWorkerPoolSize(int) Transformer[In, Out]
+	WithSpanName(string) Transformer[In, Out]
 }
 
-func New[In any, Out any](name string, in job.Queue[In], fn func(context.Context, In) (Out, error), opts ...Option) (Transformer, job.Queue[Out], job.Queue[error]) {
+func New[In any, Out any](name string, fn func(context.Context, In) (Out, error)) Transformer[In, Out] {
 	t := &transformer[In, Out]{
 		name:           name,
 		spanName:       "transform job",
 		fn:             fn,
-		in:             in,
+		in:             make(job.Queue[In]),
 		out:            make(job.Queue[Out]),
 		err:            make(job.Queue[error]),
 		workerPoolSize: 1,
 	}
-	for _, opt := range opts {
-		opt(t)
-	}
-	return t, t.out, t.err
+	return t
 }
 
 type transformer[In any, Out any] struct {
@@ -80,14 +82,29 @@ func (t transformer[In, Out]) Work() {
 	t.Transform()
 }
 
-func (t *transformer[In, Out]) setErrorQueue(err job.Queue[error]) {
+func (t *transformer[In, Out]) Input() job.Queue[In] {
+	return t.in
+}
+func (t *transformer[In, Out]) Output() job.Queue[Out] {
+	return t.out
+}
+func (t *transformer[In, Out]) Error() job.Queue[error] {
+	return t.err
+}
+
+func (t *transformer[In, Out]) WithInput(in job.Queue[In]) Transformer[In, Out] {
+	t.in = in
+	return t
+}
+func (t *transformer[In, Out]) WithErrorQueue(err job.Queue[error]) Transformer[In, Out] {
 	t.err = err
+	return t
 }
-
-func (t *transformer[In, Out]) setWorkerPoolSize(n int) {
+func (t *transformer[In, Out]) WithWorkerPoolSize(n int) Transformer[In, Out] {
 	t.workerPoolSize = n
+	return t
 }
-
-func (t *transformer[In, Out]) setSpanName(name string) {
+func (t *transformer[In, Out]) WithSpanName(name string) Transformer[In, Out] {
 	t.spanName = name
+	return t
 }
