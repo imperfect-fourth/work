@@ -2,6 +2,7 @@ package producer
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/imperfect-fourth/work/job"
@@ -56,7 +57,7 @@ func (p producer[Out]) ProduceOnce() {
 			ctx = co.Context()
 		}
 		rootCtx, j := job.New(ctx, o)
-		_, jobspan := otel.Tracer(p.name).Start(rootCtx, "start queue wait")
+		_, jobspan := otel.Tracer(p.name).Start(rootCtx, fmt.Sprintf("%s - output queue wait", p.name))
 		jobs[i] = j
 		spans[i] = jobspan
 	}

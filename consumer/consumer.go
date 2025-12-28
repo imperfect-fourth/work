@@ -2,6 +2,7 @@ package consumer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/imperfect-fourth/work/job"
 	"go.opentelemetry.io/otel"
@@ -18,13 +19,11 @@ type Consumer[In any] interface {
 	WithInput(job.Queue[In]) Consumer[In]
 	WithErrorQueue(job.Queue[error]) Consumer[In]
 	WithWorkerPoolSize(int) Consumer[In]
-	WithSpanName(string) Consumer[In]
 }
 
 func New[In any](name string, fn func(context.Context, In) error) Consumer[In] {
 	c := &consumer[In]{
 		name:           name,
-		spanName:       "consume job",
 		fn:             fn,
 		in:             make(job.Queue[In]),
 		err:            make(job.Queue[error]),
@@ -35,7 +34,6 @@ func New[In any](name string, fn func(context.Context, In) error) Consumer[In] {
 
 type consumer[In any] struct {
 	name     string
-	spanName string
 
 	fn  func(context.Context, In) error
 	in  job.Queue[In]
@@ -51,7 +49,7 @@ func (c consumer[In]) ConsumeOnce() {
 	ctx, span := otel.Tracer(c.name).Start(j.Context(), c.name)
 	defer span.End()
 
-	fnctx, fnspan := otel.Tracer(c.name).Start(ctx, c.spanName)
+	fnctx, fnspan := otel.Tracer(c.name).Start(ctx, fmt.Sprintf("%s - run function", c.name))
 	err := c.fn(fnctx, j.Input())
 	fnspan.End()
 	if err != nil {
@@ -92,9 +90,5 @@ func (c *consumer[In]) WithErrorQueue(err job.Queue[error]) Consumer[In] {
 }
 func (c *consumer[In]) WithWorkerPoolSize(n int) Consumer[In] {
 	c.workerPoolSize = n
-	return c
-}
-func (c *consumer[In]) WithSpanName(name string) Consumer[In] {
-	c.spanName = name
 	return c
 }

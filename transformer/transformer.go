@@ -2,6 +2,7 @@ package transformer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/imperfect-fourth/work/job"
 	"go.opentelemetry.io/otel"
@@ -19,13 +20,11 @@ type Transformer[In, Out any] interface {
 	WithInput(job.Queue[In]) Transformer[In, Out]
 	WithErrorQueue(job.Queue[error]) Transformer[In, Out]
 	WithWorkerPoolSize(int) Transformer[In, Out]
-	WithSpanName(string) Transformer[In, Out]
 }
 
 func New[In any, Out any](name string, fn func(context.Context, In) (Out, error)) Transformer[In, Out] {
 	t := &transformer[In, Out]{
 		name:           name,
-		spanName:       "transform job",
 		fn:             fn,
 		in:             make(job.Queue[In]),
 		out:            make(job.Queue[Out]),
@@ -37,7 +36,6 @@ func New[In any, Out any](name string, fn func(context.Context, In) (Out, error)
 
 type transformer[In any, Out any] struct {
 	name     string
-	spanName string
 
 	fn  func(context.Context, In) (Out, error)
 	in  job.Queue[In]
@@ -52,7 +50,7 @@ func (t transformer[In, Out]) TransformOnce() {
 	ctx, span := otel.Tracer(t.name).Start(j.Context(), t.name)
 	defer span.End()
 
-	fnctx, fnspan := otel.Tracer(t.name).Start(ctx, t.spanName)
+	fnctx, fnspan := otel.Tracer(t.name).Start(ctx, fmt.Sprintf("%s - run function", t.name))
 	o, err := t.fn(fnctx, j.Input())
 	fnspan.End()
 	if err != nil {
@@ -61,7 +59,7 @@ func (t transformer[In, Out]) TransformOnce() {
 		return
 	}
 
-	_, jobspan := otel.Tracer(t.name).Start(ctx, "output queue wait")
+	_, jobspan := otel.Tracer(t.name).Start(ctx, fmt.Sprintf("%s - output queue wait", t.name))
 	_, newJob := job.New(j.Context(), o)
 	t.out <- newJob
 	jobspan.End()
@@ -102,9 +100,5 @@ func (t *transformer[In, Out]) WithErrorQueue(err job.Queue[error]) Transformer[
 }
 func (t *transformer[In, Out]) WithWorkerPoolSize(n int) Transformer[In, Out] {
 	t.workerPoolSize = n
-	return t
-}
-func (t *transformer[In, Out]) WithSpanName(name string) Transformer[In, Out] {
-	t.spanName = name
 	return t
 }
