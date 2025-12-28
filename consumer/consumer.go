@@ -33,7 +33,7 @@ func New[In any](name string, fn func(context.Context, In) error) Consumer[In] {
 }
 
 type consumer[In any] struct {
-	name     string
+	name string
 
 	fn  func(context.Context, In) error
 	in  job.Queue[In]

@@ -62,14 +62,12 @@ func main() {
 		transformerFn,
 	).
 		WithInput(producer.Output()).
-		WithWorkerPoolSize(1).
-		WithSpanName("sleeping one and adding one")
+		WithWorkerPoolSize(1)
 
 	go transformer.Work()
 
 	c := work.NewConsumer("int consumer", consumerFn).
-		WithInput(transformer.Output()).
-		WithSpanName("sleeping one and printing")
+		WithInput(transformer.Output())
 
 	c.Work()
 }

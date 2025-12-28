@@ -35,7 +35,7 @@ func New[In any, Out any](name string, fn func(context.Context, In) (Out, error)
 }
 
 type transformer[In any, Out any] struct {
-	name     string
+	name string
 
 	fn  func(context.Context, In) (Out, error)
 	in  job.Queue[In]
