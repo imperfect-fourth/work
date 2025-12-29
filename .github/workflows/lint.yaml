@@ -24,7 +24,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
-          args: -c .golangci.yaml --out-format=colored-line-number
+          args: -c .golangci.yaml

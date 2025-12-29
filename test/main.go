@@ -8,9 +8,6 @@ import (
 	"time"
 
 	"github.com/imperfect-fourth/work"
-	"github.com/imperfect-fourth/work/consumer"
-	"github.com/imperfect-fourth/work/producer"
-	"github.com/imperfect-fourth/work/transformer"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -54,23 +51,24 @@ func main() {
 		}
 	}()
 
-	producer, producedIntChan, _ := work.NewProducer(
+	producer := work.NewProducer(
 		"int producer",
 		producerFn,
-		producer.WithCooldown(10*time.Second),
-	)
+	).WithCooldown(10 * time.Second)
 	go producer.Work()
 
-	transformer, transformedIntChan, _ := work.NewTransformer(
+	transformer := work.NewTransformer(
 		"int transformer",
-		producedIntChan,
 		transformerFn,
-		transformer.WithWorkerPoolSize(1),
-		transformer.WithSpanName("sleeping one and adding one"),
-	)
+	).
+		WithInput(producer.Output()).
+		WithWorkerPoolSize(1)
+
 	go transformer.Work()
 
-	c, _ := work.NewConsumer("int consumer", transformedIntChan, consumerFn, consumer.WithSpanName("sleeping one and printing"))
+	c := work.NewConsumer("int consumer", consumerFn).
+		WithInput(transformer.Output())
+
 	c.Work()
 }
 

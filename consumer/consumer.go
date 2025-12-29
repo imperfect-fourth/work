@@ -7,29 +7,30 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-type Consumer interface {
+type Consumer[In any] interface {
 	ConsumeOnce()
 	Consume()
 	Work()
 
-	setErrorQueue(err job.Queue[error])
-	setWorkerPoolSize(int)
-	setSpanName(string)
+	Input() job.Queue[In]
+	Error() job.Queue[error]
+
+	WithInput(job.Queue[In]) Consumer[In]
+	WithErrorQueue(job.Queue[error]) Consumer[In]
+	WithWorkerPoolSize(int) Consumer[In]
+	WithSpanName(string) Consumer[In]
 }
 
-func New[In any](name string, in job.Queue[In], fn func(context.Context, In) error, opts ...Option) (Consumer, job.Queue[error]) {
+func New[In any](name string, fn func(context.Context, In) error) Consumer[In] {
 	c := &consumer[In]{
 		name:           name,
 		spanName:       "consume job",
 		fn:             fn,
-		in:             in,
+		in:             make(job.Queue[In]),
 		err:            make(job.Queue[error]),
 		workerPoolSize: 1,
 	}
-	for _, opt := range opts {
-		opt(c)
-	}
-	return c, c.err
+	return c
 }
 
 type consumer[In any] struct {
@@ -74,14 +75,26 @@ func (c consumer[In]) Work() {
 	c.Consume()
 }
 
-func (c *consumer[In]) setErrorQueue(err job.Queue[error]) {
+func (c *consumer[In]) Input() job.Queue[In] {
+	return c.in
+}
+func (c *consumer[In]) Error() job.Queue[error] {
+	return c.err
+}
+
+func (c *consumer[In]) WithInput(in job.Queue[In]) Consumer[In] {
+	c.in = in
+	return c
+}
+func (c *consumer[In]) WithErrorQueue(err job.Queue[error]) Consumer[In] {
 	c.err = err
+	return c
 }
-
-func (c *consumer[In]) setWorkerPoolSize(n int) {
+func (c *consumer[In]) WithWorkerPoolSize(n int) Consumer[In] {
 	c.workerPoolSize = n
+	return c
 }
-
-func (c *consumer[In]) setSpanName(name string) {
+func (c *consumer[In]) WithSpanName(name string) Consumer[In] {
 	c.spanName = name
+	return c
 }
